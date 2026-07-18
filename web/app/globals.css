@@ -1,26 +1,115 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+/*
+ * Visual identity: a security audit console, not a dashboard template.
+ *
+ * The palette is built around Monad's purple as the single "system" accent, with a
+ * deliberately narrow risk ramp (red / amber / slate). Risk colour is reserved EXCLUSIVELY for
+ * conveying risk — no decorative red anywhere — so that a red row always means the same thing.
+ * Data is set in mono throughout, because nearly every value on screen is an address, an
+ * allowance, or a block number, and those are read character-by-character.
+ */
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-void: #08070c;
+  --color-surface: #100e17;
+  --color-raised: #171420;
+  --color-line: #241f31;
+  --color-line-bright: #362f47;
+
+  --color-ink: #ece9f5;
+  --color-ink-dim: #9d95b4;
+  --color-ink-faint: #665e7d;
+
+  /* Monad purple — the only non-risk accent in the system. */
+  --color-monad: #836ef9;
+  --color-monad-bright: #a08ffb;
+  --color-monad-deep: #4b3ba8;
+
+  --color-risk-high: #ff5a5a;
+  --color-risk-high-deep: #3d1418;
+  --color-risk-med: #ffab3d;
+  --color-risk-med-deep: #3a2510;
+  --color-risk-low: #5f8a7a;
+  --color-risk-low-deep: #14231f;
+
+  --color-ok: #46d39a;
+
+  --font-display: var(--font-space-grotesk);
+  --font-mono: var(--font-jetbrains-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html,
+body {
+  height: 100%;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background-color: var(--color-void);
+  color: var(--color-ink);
+  font-family: var(--font-display), system-ui, sans-serif;
+  /* Faint grid, the "instrument panel" cue. Low enough contrast to never fight the data. */
+  background-image:
+    linear-gradient(to right, rgba(131, 110, 249, 0.035) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(131, 110, 249, 0.035) 1px, transparent 1px);
+  background-size: 44px 44px;
+}
+
+/* Scrollbars, so internally-scrolling panels don't show OS chrome that breaks the theme. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-line-bright) transparent;
+}
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+*::-webkit-scrollbar-thumb {
+  background-color: var(--color-line-bright);
+  border-radius: 4px;
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+@keyframes sweep {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(400%);
+  }
+}
+
+/* The scan indicator: a beam crossing the bar, echoing the "sweeping your wallet" idea. */
+.scan-beam::after {
+  content: "";
+  position: absolute;
+  inset-block: 0;
+  width: 25%;
+  background: linear-gradient(90deg, transparent, var(--color-monad), transparent);
+  animation: sweep 1.4s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+@keyframes pulse-ring {
+  0% {
+    box-shadow: 0 0 0 0 rgba(255, 90, 90, 0.4);
+  }
+  70% {
+    box-shadow: 0 0 0 8px rgba(255, 90, 90, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(255, 90, 90, 0);
+  }
+}
+
+.pulse-danger {
+  animation: pulse-ring 2s ease-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .scan-beam::after,
+  .pulse-danger {
+    animation: none;
+  }
 }

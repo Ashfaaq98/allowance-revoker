@@ -40,28 +40,34 @@ export interface RiskInput {
 export function assessRisk({approval, ageDays, knownSpender}: RiskInput): RiskAssessment {
   const reasons: RiskReason[] = [];
 
+  // Exposure dominates the score deliberately. It is the one signal measured directly from
+  // chain state rather than inferred, and it is what actually determines how much can be
+  // taken: an unlimited approval risks the whole balance, a bounded one risks only its cap.
   if (approval.kind === "ERC721") {
     reasons.push({
       label: "Full collection access",
-      points: 40,
+      points: 50,
       detail:
         "setApprovalForAll lets this spender transfer every NFT in the collection, including ones you buy later.",
     });
   } else if (approval.amount >= UNLIMITED_THRESHOLD) {
     reasons.push({
       label: "Unlimited amount",
-      points: 40,
+      points: 50,
       detail:
         "This spender can move your entire balance of this token, now and forever, without asking again.",
     });
   }
 
+  // Weighted low on purpose. The known-spender list is short and hand-maintained, so a miss
+  // says more about the list than about the spender. Weighting it heavily would flag every
+  // legitimate protocol we simply have not catalogued yet.
   if (!knownSpender) {
     reasons.push({
       label: "Unrecognised spender",
-      points: 20,
+      points: 15,
       detail:
-        "This address is not on our list of known Monad protocols. That does not prove it is malicious, only that we cannot vouch for it.",
+        "Not on our short list of known Monad protocols. This does not mean it is malicious — the list is far from complete — only that we cannot vouch for it.",
     });
   }
 
@@ -82,9 +88,9 @@ export function assessRisk({approval, ageDays, knownSpender}: RiskInput): RiskAs
   if (!approval.listed) {
     reasons.push({
       label: "Token not on canonical list",
-      points: 10,
+      points: 5,
       detail:
-        "This token is not on the official Monad token list. Unknown tokens are sometimes used as bait to get an approval signed.",
+        "Not on the official Monad token list. Plenty of legitimate tokens are missing from it, but unknown tokens are also used as bait to get an approval signed.",
     });
   }
 
