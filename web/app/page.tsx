@@ -1,6 +1,8 @@
 "use client";
 
-import {useCallback, useEffect, useMemo, useState} from "react";
+import {useQuery} from "@tanstack/react-query";
+import {useSearchParams} from "next/navigation";
+import {Suspense, useCallback, useMemo, useState} from "react";
 import {type Address, isAddress} from "viem";
 import {useAccount, useChainId, useReadContract} from "wagmi";
 import {ApprovalTable, type ScoredApproval} from "@/components/ApprovalTable";
@@ -21,23 +23,29 @@ import {useRevoke} from "@/lib/useRevoke";
 type Filter = "all" | "high" | "medium" | "low";
 
 export default function Home() {
+  // useSearchParams needs a Suspense boundary on a statically prerendered route.
+  return (
+    <Suspense fallback={null}>
+      <Dashboard />
+    </Suspense>
+  );
+}
+
+function Dashboard() {
   const {address: connectedAddress, isConnected} = useAccount();
   const chainId = useChainId();
   const {states, revoke} = useRevoke();
 
+  /** ?address=0x… deep link, so an approval report can be shared or bookmarked. */
+  const searchParams = useSearchParams();
+  const linkedAddress = searchParams.get("address");
+
   /** Set when inspecting someone else's wallet read-only. Null means "use my own". */
-  const [watchAddress, setWatchAddress] = useState<Address | null>(null);
+  const [manualAddress, setManualAddress] = useState<Address | null>(null);
+  const watchAddress =
+    manualAddress ?? (linkedAddress && isAddress(linkedAddress) ? (linkedAddress as Address) : null);
 
-  // ?address=0x… deep link, so an approval report can be shared or bookmarked.
-  // Read from location rather than useSearchParams to keep this page statically rendered.
-  useEffect(() => {
-    const param = new URLSearchParams(window.location.search).get("address");
-    if (param && isAddress(param)) setWatchAddress(param);
-  }, []);
-
-  const [result, setResult] = useState<ScanResult | null>(null);
   const [progress, setProgress] = useState<ScanProgress | null>(null);
-  const [scanError, setScanError] = useState<string | null>(null);
   const [filter, setFilter] = useState<Filter>("all");
 
   const registryEnabled = isRegistryConfigured();
@@ -59,24 +67,27 @@ export default function Home() {
     query: {enabled: registryEnabled && !!target},
   });
 
-  const runScan = useCallback(async () => {
-    if (!target) return;
-    setScanError(null);
-    setResult(null);
-    setProgress({phase: "logs", message: "Starting scan", fraction: 0.02});
-    try {
-      setResult(await scanApprovals(target, setProgress));
-    } catch (error) {
-      setScanError(error instanceof Error ? error.message : String(error));
-    } finally {
-      setProgress(null);
-    }
-  }, [target]);
+  // Scanning is modelled as a query keyed on the address, so it starts automatically whenever
+  // there is a wallet to look at — seeing what is already exposed is the entire point.
+  const {
+    data: result = null,
+    isFetching,
+    error,
+    refetch,
+  } = useQuery({
+    queryKey: ["approvals", target],
+    queryFn: async () => {
+      setProgress({phase: "logs", message: "Starting scan", fraction: 0.02});
+      return scanApprovals(target as Address, setProgress);
+    },
+    enabled: !!target,
+    retry: false,
+    // Results carry bigints, which structural sharing cannot diff.
+    structuralSharing: false,
+  });
 
-  // Scan as soon as there is a wallet to look at — seeing what is exposed is the whole point.
-  useEffect(() => {
-    if (target) void runScan();
-  }, [target, runScan]);
+  const runScan = useCallback(() => void refetch(), [refetch]);
+  const scanError = error ? (error instanceof Error ? error.message : String(error)) : null;
 
   const scored = useMemo<ScoredApproval[]>(() => {
     if (!result) return [];
@@ -115,7 +126,7 @@ export default function Home() {
     [revoke, refetchScore],
   );
 
-  const scanning = progress !== null;
+  const scanning = isFetching;
 
   return (
     <div className="flex h-full flex-col">
@@ -143,7 +154,7 @@ export default function Home() {
       </header>
 
       {!target ? (
-        <Landing onInspect={setWatchAddress} />
+        <Landing onInspect={setManualAddress} />
       ) : isConnected && chainId !== MONAD_CHAIN_ID && !watchAddress ? (
         <CenteredNotice
           title="Wrong network"
@@ -159,7 +170,7 @@ export default function Home() {
               </span>
               <div className="flex gap-2">
                 {watchAddress && (
-                  <Button variant="ghost" onClick={() => setWatchAddress(null)}>
+                  <Button variant="ghost" onClick={() => setManualAddress(null)}>
                     Exit
                   </Button>
                 )}
