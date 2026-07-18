@@ -18,10 +18,19 @@ export const MONAD_CHAIN_ID = 143;
  * response-size model is workable, so log queries are pinned to rpc1 and the scanner splits
  * the range when a wallet trips the 10,000-log cap (see scanApprovals.ts).
  */
-export const LOGS_RPC = "https://rpc1.monad.xyz";
+/**
+ * Optional override pointing every RPC call at a single endpoint. Set NEXT_PUBLIC_RPC_URL to
+ * run the whole dashboard against a local node or a fork — which is how the revoke flow is
+ * exercised end-to-end without spending real funds (see contracts/README or the repo README).
+ */
+const RPC_OVERRIDE = process.env.NEXT_PUBLIC_RPC_URL;
+
+export const LOGS_RPC = RPC_OVERRIDE ?? "https://rpc1.monad.xyz";
 
 /** Ordinary calls and transactions are fine on any endpoint; these are only rate-limited. */
-const GENERAL_RPCS = ["https://rpc1.monad.xyz", "https://rpc.monad.xyz", "https://rpc3.monad.xyz"];
+const GENERAL_RPCS = RPC_OVERRIDE
+  ? [RPC_OVERRIDE]
+  : ["https://rpc1.monad.xyz", "https://rpc.monad.xyz", "https://rpc3.monad.xyz"];
 
 export const monadWithRpc = defineChain({
   ...monad,

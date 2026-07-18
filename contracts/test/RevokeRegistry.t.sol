@@ -4,20 +4,42 @@ pragma solidity 0.8.28;
 import {Test} from "forge-std/Test.sol";
 import {RevokeRegistry} from "../src/RevokeRegistry.sol";
 
+/// @dev Emits Approval and exposes metadata so it behaves like a real token to off-chain
+///      consumers. The dashboard discovers approvals from Approval EVENTS, not from storage,
+///      so a mock that only writes the mapping is invisible to it — which is exactly what an
+///      end-to-end run against a local chain turned up.
 contract MockERC20 {
+    string public name = "Mock Token";
+    string public symbol = "MOCK";
+    uint8 public decimals = 18;
+
     mapping(address => mapping(address => uint256)) public allowance;
+    mapping(address => uint256) public balanceOf;
+
+    event Approval(address indexed owner, address indexed spender, uint256 value);
 
     function approve(address spender, uint256 value) external returns (bool) {
         allowance[msg.sender][spender] = value;
+        emit Approval(msg.sender, spender, value);
         return true;
+    }
+
+    function mint(address to, uint256 amount) external {
+        balanceOf[to] += amount;
     }
 }
 
 contract MockERC721 {
+    string public name = "Mock Collection";
+    string public symbol = "MOCKNFT";
+
     mapping(address => mapping(address => bool)) public isApprovedForAll;
+
+    event ApprovalForAll(address indexed owner, address indexed operator, bool approved);
 
     function setApprovalForAll(address operator, bool approved) external {
         isApprovedForAll[msg.sender][operator] = approved;
+        emit ApprovalForAll(msg.sender, operator, approved);
     }
 }
 

@@ -166,6 +166,26 @@ cd contracts && forge test -vv
 
 18 passing. The ones that matter most are `test_CannotScoreApprovalThatNeverExisted` and `test_CannotFarmScoreAcrossManyRandomSpenders`, which reproduce the attack a single-step registry permits and assert the score stays at zero.
 
+### Verifying the revoke flow end to end
+
+Unit tests cover the contract, but the part worth proving is the whole path: browser → wallet → three transactions → chain. That runs against a local node, so it needs no funds and no wallet of your own:
+
+```bash
+./scripts/local-e2e.sh
+cd web && npm run dev
+```
+
+The script starts anvil **as chain 143**, so the dashboard treats it as Monad; installs Multicall3 by copying its runtime bytecode from mainnet; deploys the registry and a mock token; and grants an unlimited approval. Import the printed anvil account into a browser wallet, connect, and revoke the approval it shows.
+
+Then confirm the chain agrees, rather than trusting the UI:
+
+```bash
+cast call $TOKEN 'allowance(address,address)(uint256)' $OWNER $SPENDER --rpc-url http://localhost:8545  # 0
+cast call $REGISTRY 'cleanupScore(address)(uint256)' $OWNER --rpc-url http://localhost:8545             # 1
+```
+
+Two things this turned up that unit tests could not: the app hard-depends on Multicall3 being deployed (without it every approval is silently discarded as dead), and the block-rate sample used for approval age underflowed on any chain shorter than 100,000 blocks.
+
 ## Limitations
 
 Stated plainly, because a security tool that oversells itself is worse than none:

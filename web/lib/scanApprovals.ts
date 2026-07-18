@@ -275,11 +275,17 @@ export async function scanApprovals(
   const paddedOwner = `0x${owner.slice(2).toLowerCase().padStart(64, "0")}` as Hex;
 
   const latestBlock = await publicClient.getBlockNumber();
+
+  // Sample the block rate to turn block deltas into wall-clock age. The span is clamped to the
+  // chain's actual height: a fixed 100k lookback underflows to a negative block number on any
+  // chain shorter than that, which is every local node and fresh fork.
+  const sampleSpan = latestBlock > 100_000n ? 100_000n : latestBlock;
   const [newBlock, oldBlock] = await Promise.all([
     publicClient.getBlock({blockNumber: latestBlock}),
-    publicClient.getBlock({blockNumber: latestBlock - 100_000n}),
+    publicClient.getBlock({blockNumber: latestBlock - sampleSpan}),
   ]);
-  const secondsPerBlock = Number(newBlock.timestamp - oldBlock.timestamp) / 100_000;
+  const secondsPerBlock =
+    sampleSpan === 0n ? 0 : Number(newBlock.timestamp - oldBlock.timestamp) / Number(sampleSpan);
 
   // Run both scans concurrently with independent budgets. Sharing one budget sequentially
   // meant a spam-heavy ERC-20 history could starve the NFT scan entirely, and doubled wall

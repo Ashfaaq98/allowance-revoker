@@ -25,7 +25,7 @@ import {
   type ScanProgress,
   type ScanResult,
 } from "@/lib/scanApprovals";
-import { useRevoke } from "@/lib/useRevoke";
+import { approvalKey, useRevoke } from "@/lib/useRevoke";
 
 type Filter = "all" | "high" | "medium" | "low";
 
@@ -124,11 +124,17 @@ function Dashboard() {
       .sort((a, b) => b.risk.score - a.risk.score);
   }, [result]);
 
+  // Already-revoked rows are excluded from the counts. They stay visible so their transaction
+  // links remain reachable, but leaving them in the totals meant the headline still read
+  // "1 at risk" moments after the chain confirmed that approval was gone.
   const counts = useMemo(() => {
     const c = { high: 0, medium: 0, low: 0 };
-    for (const s of scored) c[s.risk.level]++;
+    for (const s of scored) {
+      if (states[approvalKey(s.approval)]?.step === "done") continue;
+      c[s.risk.level]++;
+    }
     return c;
-  }, [scored]);
+  }, [scored, states]);
 
   const visible = useMemo(
     () => (filter === "all" ? scored : scored.filter((s) => s.risk.level === filter)),
