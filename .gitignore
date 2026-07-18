@@ -1,0 +1,20 @@
+# Foundry
+contracts/out/
+contracts/cache/
+contracts/broadcast/*/dry-run/
+
+# Node / Next.js
+node_modules/
+.next/
+out/
+build/
+.vercel
+
+# Env & secrets — never commit a key
+.env
+.env*.local
+!.env.example
+
+# Misc
+.DS_Store
+*.log
