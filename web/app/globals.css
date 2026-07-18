@@ -3,40 +3,104 @@
 /*
  * Visual identity: a security audit console, not a dashboard template.
  *
- * The palette is built around Monad's purple as the single "system" accent, with a
- * deliberately narrow risk ramp (red / amber / slate). Risk colour is reserved EXCLUSIVELY for
- * conveying risk — no decorative red anywhere — so that a red row always means the same thing.
- * Data is set in mono throughout, because nearly every value on screen is an address, an
- * allowance, or a block number, and those are read character-by-character.
+ * Both themes are designed, not derived — light mode is a printed audit report (warm paper,
+ * ink-dark text) rather than an inverted screen. Risk colour is reserved EXCLUSIVELY for
+ * conveying risk, never decoration, so a red row always means one thing. Data is set in mono
+ * throughout because nearly every value on screen is an address, allowance, or block number.
+ *
+ * Every token below is defined twice. Risk hues in particular are NOT shared: a red that
+ * carries on near-black is too light to read on paper, so light mode uses deeper, denser
+ * versions to hold contrast against a bright field.
  */
 
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
+:root {
+  /* ---- light: a printed report ---- */
+  --void: #f7f5fa;
+  --surface: #ffffff;
+  --raised: #f2eff7;
+  --line: #e5e0ee;
+  --line-bright: #cdc5dd;
+
+  --ink: #17121f;
+  --ink-dim: #574f6b;
+  --ink-faint: #857c99;
+
+  --monad: #5b46d4;
+  --monad-bright: #472fc4;
+  --monad-deep: #ddd6fa;
+
+  --risk-high: #c02828;
+  --risk-high-deep: #fdeceb;
+  --risk-med: #9a6208;
+  --risk-med-deep: #fdf3e0;
+  --risk-low: #3c6b5b;
+  --risk-low-deep: #ecf4f1;
+
+  --ok: #1f7a52;
+
+  --grid: rgba(91, 70, 212, 0.055);
+  --shadow: 0 1px 2px rgba(23, 18, 31, 0.05), 0 4px 16px -8px rgba(23, 18, 31, 0.12);
+}
+
+[data-theme="dark"] {
+  /* ---- dark: an instrument panel ---- */
+  --void: #08070c;
+  --surface: #100e17;
+  --raised: #171420;
+  --line: #241f31;
+  --line-bright: #382f4a;
+
+  --ink: #ece9f5;
+  --ink-dim: #a49bba;
+  --ink-faint: #6f6689;
+
+  --monad: #836ef9;
+  --monad-bright: #a692fc;
+  --monad-deep: #2a1f5e;
+
+  --risk-high: #ff6b6b;
+  --risk-high-deep: #33141a;
+  --risk-med: #ffb454;
+  --risk-med-deep: #33220f;
+  --risk-low: #6d9d8b;
+  --risk-low-deep: #14231f;
+
+  --ok: #4ade9f;
+
+  --grid: rgba(131, 110, 249, 0.04);
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 8px 24px -12px rgba(0, 0, 0, 0.6);
+}
+
 @theme inline {
-  --color-void: #08070c;
-  --color-surface: #100e17;
-  --color-raised: #171420;
-  --color-line: #241f31;
-  --color-line-bright: #362f47;
+  --color-void: var(--void);
+  --color-surface: var(--surface);
+  --color-raised: var(--raised);
+  --color-line: var(--line);
+  --color-line-bright: var(--line-bright);
 
-  --color-ink: #ece9f5;
-  --color-ink-dim: #9d95b4;
-  --color-ink-faint: #665e7d;
+  --color-ink: var(--ink);
+  --color-ink-dim: var(--ink-dim);
+  --color-ink-faint: var(--ink-faint);
 
-  /* Monad purple — the only non-risk accent in the system. */
-  --color-monad: #836ef9;
-  --color-monad-bright: #a08ffb;
-  --color-monad-deep: #4b3ba8;
+  --color-monad: var(--monad);
+  --color-monad-bright: var(--monad-bright);
+  --color-monad-deep: var(--monad-deep);
 
-  --color-risk-high: #ff5a5a;
-  --color-risk-high-deep: #3d1418;
-  --color-risk-med: #ffab3d;
-  --color-risk-med-deep: #3a2510;
-  --color-risk-low: #5f8a7a;
-  --color-risk-low-deep: #14231f;
+  --color-risk-high: var(--risk-high);
+  --color-risk-high-deep: var(--risk-high-deep);
+  --color-risk-med: var(--risk-med);
+  --color-risk-med-deep: var(--risk-med-deep);
+  --color-risk-low: var(--risk-low);
+  --color-risk-low-deep: var(--risk-low-deep);
 
-  --color-ok: #46d39a;
+  --color-ok: var(--ok);
 
   --font-display: var(--font-space-grotesk);
   --font-mono: var(--font-jetbrains-mono);
+
+  --shadow-panel: var(--shadow);
 }
 
 html,
@@ -45,31 +109,43 @@ body {
 }
 
 body {
-  background-color: var(--color-void);
-  color: var(--color-ink);
+  background-color: var(--void);
+  color: var(--ink);
   font-family: var(--font-display), system-ui, sans-serif;
-  /* Faint grid, the "instrument panel" cue. Low enough contrast to never fight the data. */
+  /* Faint grid, the "instrument panel" cue. Low contrast so it never fights the data. */
   background-image:
-    linear-gradient(to right, rgba(131, 110, 249, 0.035) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(131, 110, 249, 0.035) 1px, transparent 1px);
+    linear-gradient(to right, var(--grid) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--grid) 1px, transparent 1px);
   background-size: 44px 44px;
 }
 
-/* Scrollbars, so internally-scrolling panels don't show OS chrome that breaks the theme. */
+/* Themed scrollbars, so internally-scrolling panels don't show OS chrome that breaks the look. */
 * {
   scrollbar-width: thin;
-  scrollbar-color: var(--color-line-bright) transparent;
+  scrollbar-color: var(--line-bright) transparent;
 }
 *::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 9px;
+  height: 9px;
 }
 *::-webkit-scrollbar-thumb {
-  background-color: var(--color-line-bright);
-  border-radius: 4px;
+  background-color: var(--line-bright);
+  border-radius: 5px;
+  border: 2px solid transparent;
+  background-clip: content-box;
 }
 *::-webkit-scrollbar-track {
   background: transparent;
+}
+
+::selection {
+  background: var(--monad-deep);
+  color: var(--ink);
+}
+
+:focus-visible {
+  outline: 2px solid var(--monad);
+  outline-offset: 2px;
 }
 
 @keyframes sweep {
@@ -81,35 +157,34 @@ body {
   }
 }
 
-/* The scan indicator: a beam crossing the bar, echoing the "sweeping your wallet" idea. */
+/* The scan indicator: a beam crossing the bar, echoing "sweeping your wallet". */
 .scan-beam::after {
   content: "";
   position: absolute;
   inset-block: 0;
   width: 25%;
-  background: linear-gradient(90deg, transparent, var(--color-monad), transparent);
+  background: linear-gradient(90deg, transparent, var(--monad), transparent);
   animation: sweep 1.4s cubic-bezier(0.4, 0, 0.2, 1) infinite;
 }
 
-@keyframes pulse-ring {
-  0% {
-    box-shadow: 0 0 0 0 rgba(255, 90, 90, 0.4);
+@keyframes row-in {
+  from {
+    opacity: 0;
+    transform: translateY(3px);
   }
-  70% {
-    box-shadow: 0 0 0 8px rgba(255, 90, 90, 0);
-  }
-  100% {
-    box-shadow: 0 0 0 0 rgba(255, 90, 90, 0);
+  to {
+    opacity: 1;
+    transform: none;
   }
 }
 
-.pulse-danger {
-  animation: pulse-ring 2s ease-out infinite;
+.row-in {
+  animation: row-in 0.24s ease-out both;
 }
 
 @media (prefers-reduced-motion: reduce) {
   .scan-beam::after,
-  .pulse-danger {
+  .row-in {
     animation: none;
   }
 }

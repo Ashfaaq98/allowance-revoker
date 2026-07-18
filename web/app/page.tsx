@@ -1,14 +1,21 @@
 "use client";
 
-import {useQuery} from "@tanstack/react-query";
-import {useSearchParams} from "next/navigation";
-import {Suspense, useCallback, useMemo, useState} from "react";
-import {type Address, isAddress} from "viem";
-import {useAccount, useChainId, useReadContract} from "wagmi";
-import {ApprovalTable, type ScoredApproval} from "@/components/ApprovalTable";
-import {ConnectWallet} from "@/components/ConnectWallet";
-import {Button, Panel, Spinner, Stat} from "@/components/primitives";
-import {MONAD_CHAIN_ID} from "@/lib/chain";
+import { useQuery } from "@tanstack/react-query";
+import { useSearchParams } from "next/navigation";
+import { Suspense, useCallback, useMemo, useState } from "react";
+import { type Address, isAddress } from "viem";
+import { useAccount, useChainId, useReadContract } from "wagmi";
+import { ApprovalTable, type ScoredApproval } from "@/components/ApprovalTable";
+import { ConnectWallet } from "@/components/ConnectWallet";
+import {
+  Button,
+  ExposureBar,
+  Panel,
+  Spinner,
+  Stat,
+} from "@/components/primitives";
+import { ThemeToggle } from "@/components/ThemeToggle";
+import { MONAD_CHAIN_ID } from "@/lib/chain";
 import {
   isRegistryConfigured,
   REGISTRY_ADDRESS,
@@ -16,9 +23,14 @@ import {
   shortAddress,
   spenderLabel,
 } from "@/lib/contracts";
-import {ageInDays, assessRisk} from "@/lib/riskScore";
-import {type Approval, scanApprovals, type ScanProgress, type ScanResult} from "@/lib/scanApprovals";
-import {useRevoke} from "@/lib/useRevoke";
+import { ageInDays, assessRisk } from "@/lib/riskScore";
+import {
+  type Approval,
+  scanApprovals,
+  type ScanProgress,
+  type ScanResult,
+} from "@/lib/scanApprovals";
+import { useRevoke } from "@/lib/useRevoke";
 
 type Filter = "all" | "high" | "medium" | "low";
 
@@ -32,9 +44,9 @@ export default function Home() {
 }
 
 function Dashboard() {
-  const {address: connectedAddress, isConnected} = useAccount();
+  const { address: connectedAddress, isConnected } = useAccount();
   const chainId = useChainId();
-  const {states, revoke} = useRevoke();
+  const { states, revoke } = useRevoke();
 
   /** ?address=0x… deep link, so an approval report can be shared or bookmarked. */
   const searchParams = useSearchParams();
@@ -43,7 +55,10 @@ function Dashboard() {
   /** Set when inspecting someone else's wallet read-only. Null means "use my own". */
   const [manualAddress, setManualAddress] = useState<Address | null>(null);
   const watchAddress =
-    manualAddress ?? (linkedAddress && isAddress(linkedAddress) ? (linkedAddress as Address) : null);
+    manualAddress ??
+    (linkedAddress && isAddress(linkedAddress)
+      ? (linkedAddress as Address)
+      : null);
 
   const [progress, setProgress] = useState<ScanProgress | null>(null);
   const [filter, setFilter] = useState<Filter>("all");
@@ -59,12 +74,12 @@ function Dashboard() {
     !!target &&
     connectedAddress.toLowerCase() === target.toLowerCase();
 
-  const {data: cleanupScore, refetch: refetchScore} = useReadContract({
+  const { data: cleanupScore, refetch: refetchScore } = useReadContract({
     address: registryEnabled ? (REGISTRY_ADDRESS as Address) : undefined,
     abi: revokeRegistryAbi,
     functionName: "cleanupScore",
     args: target ? [target] : undefined,
-    query: {enabled: registryEnabled && !!target},
+    query: { enabled: registryEnabled && !!target },
   });
 
   // Scanning is modelled as a query keyed on the address, so it starts automatically whenever
@@ -77,7 +92,7 @@ function Dashboard() {
   } = useQuery({
     queryKey: ["approvals", target],
     queryFn: async () => {
-      setProgress({phase: "logs", message: "Starting scan", fraction: 0.02});
+      setProgress({ phase: "logs", message: "Starting scan", fraction: 0.02 });
       return scanApprovals(target as Address, setProgress);
     },
     enabled: !!target,
@@ -87,13 +102,21 @@ function Dashboard() {
   });
 
   const runScan = useCallback(() => void refetch(), [refetch]);
-  const scanError = error ? (error instanceof Error ? error.message : String(error)) : null;
+  const scanError = error
+    ? error instanceof Error
+      ? error.message
+      : String(error)
+    : null;
 
   const scored = useMemo<ScoredApproval[]>(() => {
     if (!result) return [];
     return result.approvals
       .map((approval) => {
-        const days = ageInDays(approval.lastUpdatedBlock, result.latestBlock, result.secondsPerBlock);
+        const days = ageInDays(
+          approval.lastUpdatedBlock,
+          result.latestBlock,
+          result.secondsPerBlock,
+        );
         return {
           approval,
           ageDays: days,
@@ -108,13 +131,14 @@ function Dashboard() {
   }, [result]);
 
   const counts = useMemo(() => {
-    const c = {high: 0, medium: 0, low: 0};
+    const c = { high: 0, medium: 0, low: 0 };
     for (const s of scored) c[s.risk.level]++;
     return c;
   }, [scored]);
 
   const visible = useMemo(
-    () => (filter === "all" ? scored : scored.filter((s) => s.risk.level === filter)),
+    () =>
+      filter === "all" ? scored : scored.filter((s) => s.risk.level === filter),
     [scored, filter],
   );
 
@@ -133,24 +157,39 @@ function Dashboard() {
       <header className="flex shrink-0 items-center justify-between gap-4 border-b border-line px-5 py-3">
         <div className="flex items-center gap-3">
           <div className="flex size-8 items-center justify-center rounded border border-monad/40 bg-monad/10">
-            <svg viewBox="0 0 20 20" className="size-4 text-monad-bright" fill="none" aria-hidden="true">
+            <svg
+              viewBox="0 0 20 20"
+              className="size-4 text-monad-bright"
+              fill="none"
+              aria-hidden="true"
+            >
               <path
                 d="M10 2l6.5 3v5c0 3.5-2.6 6.6-6.5 8-3.9-1.4-6.5-4.5-6.5-8V5L10 2z"
                 stroke="currentColor"
                 strokeWidth="1.6"
                 strokeLinejoin="round"
               />
-              <path d="M7 10l2 2 4-4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+              <path
+                d="M7 10l2 2 4-4"
+                stroke="currentColor"
+                strokeWidth="1.6"
+                strokeLinecap="round"
+              />
             </svg>
           </div>
           <div className="flex flex-col">
-            <h1 className="text-sm font-medium leading-tight tracking-tight">Allowance Revoker</h1>
+            <h1 className="text-sm font-medium leading-tight tracking-tight">
+              Allowance Revoker
+            </h1>
             <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-ink-faint">
               Monad Mainnet · Chain 143
             </span>
           </div>
         </div>
-        <ConnectWallet />
+        <div className="flex items-center gap-2">
+          <ThemeToggle />
+          <ConnectWallet />
+        </div>
       </header>
 
       {!target ? (
@@ -165,12 +204,15 @@ function Dashboard() {
           {!canRevoke && (
             <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 rounded border border-monad/25 bg-monad/5 px-3 py-2">
               <span className="font-mono text-[11px] text-monad-bright">
-                Read-only — viewing {shortAddress(target)}. Live chain data, but only this wallet&apos;s
-                owner can revoke its approvals.
+                Read-only — viewing {shortAddress(target)}. Live chain data, but
+                only this wallet&apos;s owner can revoke its approvals.
               </span>
               <div className="flex gap-2">
                 {watchAddress && (
-                  <Button variant="ghost" onClick={() => setManualAddress(null)}>
+                  <Button
+                    variant="ghost"
+                    onClick={() => setManualAddress(null)}
+                  >
                     Exit
                   </Button>
                 )}
@@ -179,45 +221,54 @@ function Dashboard() {
             </div>
           )}
 
-          <div className="flex shrink-0 flex-wrap items-end justify-between gap-4 rounded-lg border border-line bg-surface/80 px-5 py-3.5">
-            <div className="flex flex-wrap items-end gap-7">
-              <Stat
-                label="At risk"
-                value={scanning ? "—" : counts.high}
-                tone={counts.high > 0 ? "danger" : "good"}
-                hint="Approvals scoring 60 or above"
-              />
-              <Stat
-                label="Worth review"
-                value={scanning ? "—" : counts.medium}
-                tone={counts.medium > 0 ? "warn" : "default"}
-                hint="Approvals scoring 30 to 59"
-              />
-              <Stat label="Bounded" value={scanning ? "—" : counts.low} hint="Approvals scoring under 30" />
-              {registryEnabled && (
+          <div className="flex shrink-0 flex-col gap-3 rounded-xl border border-line bg-surface px-5 py-4 shadow-panel">
+            <div className="flex flex-wrap items-end justify-between gap-4">
+              <div className="flex flex-wrap items-end gap-8">
                 <Stat
-                  label="Cleanup score"
-                  value={cleanupScore === undefined ? "—" : String(cleanupScore)}
-                  tone="monad"
-                  hint="Approvals provably revoked, recorded on-chain"
+                  label="At risk"
+                  value={scanning ? "—" : counts.high}
+                  tone={counts.high > 0 ? "danger" : "good"}
+                  hint="Approvals scoring 60 or above"
                 />
-              )}
-            </div>
-            <div className="flex items-center gap-2">
-              {(["all", "high", "medium", "low"] as const).map((f) => (
-                <Button
-                  key={f}
-                  variant={filter === f ? "primary" : "ghost"}
-                  onClick={() => setFilter(f)}
-                  disabled={scanning}
-                >
-                  {f}
+                <Stat
+                  label="Worth review"
+                  value={scanning ? "—" : counts.medium}
+                  tone={counts.medium > 0 ? "warn" : "default"}
+                  hint="Approvals scoring 30 to 59"
+                />
+                <Stat
+                  label="Bounded"
+                  value={scanning ? "—" : counts.low}
+                  hint="Approvals scoring under 30"
+                />
+                {registryEnabled && (
+                  <Stat
+                    label="Cleanup score"
+                    value={
+                      cleanupScore === undefined ? "—" : String(cleanupScore)
+                    }
+                    tone="monad"
+                    hint="Approvals provably revoked, recorded on-chain"
+                  />
+                )}
+              </div>
+              <div className="flex items-center gap-2">
+                {(["all", "high", "medium", "low"] as const).map((f) => (
+                  <Button
+                    key={f}
+                    variant={filter === f ? "primary" : "ghost"}
+                    onClick={() => setFilter(f)}
+                    disabled={scanning}
+                  >
+                    {f}
+                  </Button>
+                ))}
+                <Button onClick={runScan} disabled={scanning}>
+                  {scanning ? "Scanning…" : "Rescan"}
                 </Button>
-              ))}
-              <Button onClick={runScan} disabled={scanning}>
-                {scanning ? "Scanning…" : "Rescan"}
-              </Button>
+              </div>
             </div>
+            {!scanning && <ExposureBar counts={counts} />}
           </div>
 
           <Panel
@@ -240,10 +291,17 @@ function Dashboard() {
                 action={<Button onClick={runScan}>Try again</Button>}
               />
             ) : !result ? (
-              <CenteredNotice title="No scan yet" body="Run a scan to read approvals from the chain." />
+              <CenteredNotice
+                title="No scan yet"
+                body="Run a scan to read approvals from the chain."
+              />
             ) : visible.length === 0 ? (
               <CenteredNotice
-                title={scored.length === 0 ? "Nothing exposed" : `No ${filter}-risk approvals`}
+                title={
+                  scored.length === 0
+                    ? "Nothing exposed"
+                    : `No ${filter}-risk approvals`
+                }
                 body={
                   scored.length === 0
                     ? `This wallet has no active token approvals. ${result.filteredOut} historical approval event${
@@ -265,8 +323,9 @@ function Dashboard() {
 
           {!registryEnabled && (
             <p className="shrink-0 rounded border border-risk-med/25 bg-risk-med-deep/50 px-3 py-2 font-mono text-[11px] text-risk-med">
-              Registry contract not configured. Revoking works normally; on-chain cleanup proofs are
-              disabled until NEXT_PUBLIC_REGISTRY_ADDRESS is set.
+              Registry contract not configured. Revoking works normally;
+              on-chain cleanup proofs are disabled until
+              NEXT_PUBLIC_REGISTRY_ADDRESS is set.
             </p>
           )}
         </main>
@@ -275,7 +334,7 @@ function Dashboard() {
   );
 }
 
-function CoverageNote({result}: {result: ScanResult}) {
+function CoverageNote({ result }: { result: ScanResult }) {
   if (result.complete) {
     return (
       <span className="font-mono text-[10px] text-ink-faint">
@@ -293,7 +352,7 @@ function CoverageNote({result}: {result: ScanResult}) {
   );
 }
 
-function ScanningState({progress}: {progress: ScanProgress | null}) {
+function ScanningState({ progress }: { progress: ScanProgress | null }) {
   return (
     <div className="flex flex-1 flex-col items-center justify-center gap-4 p-8">
       <div className="scan-beam relative h-0.5 w-56 overflow-hidden rounded-full bg-line" />
@@ -310,7 +369,15 @@ function ScanningState({progress}: {progress: ScanProgress | null}) {
   );
 }
 
-function CenteredNotice({title, body, action}: {title: string; body: string; action?: React.ReactNode}) {
+function CenteredNotice({
+  title,
+  body,
+  action,
+}: {
+  title: string;
+  body: string;
+  action?: React.ReactNode;
+}) {
   return (
     <div className="flex flex-1 flex-col items-center justify-center gap-2 p-8 text-center">
       <h3 className="font-mono text-sm text-ink">{title}</h3>
@@ -321,12 +388,24 @@ function CenteredNotice({title, body, action}: {title: string; body: string; act
 }
 
 const STEPS = [
-  {n: "01", t: "Scan", d: "Read every Approval event your wallet has emitted, back to genesis."},
-  {n: "02", t: "Verify", d: "Re-check each one against live state. Spam and spent approvals drop out."},
-  {n: "03", t: "Revoke", d: "Set the allowance to zero, and prove the cleanup on-chain."},
+  {
+    n: "01",
+    t: "Scan",
+    d: "Read every Approval event your wallet has emitted, back to genesis.",
+  },
+  {
+    n: "02",
+    t: "Verify",
+    d: "Re-check each one against live state. Spam and spent approvals drop out.",
+  },
+  {
+    n: "03",
+    t: "Revoke",
+    d: "Set the allowance to zero, and prove the cleanup on-chain.",
+  },
 ];
 
-function Landing({onInspect}: {onInspect: (address: Address) => void}) {
+function Landing({ onInspect }: { onInspect: (address: Address) => void }) {
   const [input, setInput] = useState("");
   const trimmed = input.trim();
   const valid = isAddress(trimmed);
@@ -342,10 +421,10 @@ function Landing({onInspect}: {onInspect: (address: Address) => void}) {
             Every dApp you have used still has permission to move your tokens.
           </h2>
           <p className="text-sm leading-relaxed text-ink-dim">
-            Approvals do not expire. Months later you have forgotten which contracts you granted
-            access to, and most of them asked for an unlimited amount. If any one of them is
-            exploited, the attacker does not need your keys — they use the approval you already
-            signed.
+            Approvals do not expire. Months later you have forgotten which
+            contracts you granted access to, and most of them asked for an
+            unlimited amount. If any one of them is exploited, the attacker does
+            not need your keys — they use the approval you already signed.
           </p>
           <div className="flex flex-col items-start gap-2">
             <ConnectWallet />
@@ -358,11 +437,18 @@ function Landing({onInspect}: {onInspect: (address: Address) => void}) {
         <div className="flex flex-col gap-5">
           <ol className="flex flex-col gap-3">
             {STEPS.map((s) => (
-              <li key={s.n} className="flex gap-3 rounded border border-line bg-surface/60 px-3 py-2.5">
+              <li
+                key={s.n}
+                className="flex gap-3 rounded border border-line bg-surface/60 px-3 py-2.5"
+              >
                 <span className="font-mono text-[10px] text-monad">{s.n}</span>
                 <span className="flex flex-col gap-0.5">
-                  <span className="font-mono text-xs uppercase tracking-wider text-ink">{s.t}</span>
-                  <span className="text-[11px] leading-relaxed text-ink-dim">{s.d}</span>
+                  <span className="font-mono text-xs uppercase tracking-wider text-ink">
+                    {s.t}
+                  </span>
+                  <span className="text-[11px] leading-relaxed text-ink-dim">
+                    {s.d}
+                  </span>
                 </span>
               </li>
             ))}
@@ -396,7 +482,9 @@ function Landing({onInspect}: {onInspect: (address: Address) => void}) {
               </Button>
             </div>
             {trimmed.length > 0 && !valid && (
-              <span className="font-mono text-[10px] text-risk-high">Not a valid address</span>
+              <span className="font-mono text-[10px] text-risk-high">
+                Not a valid address
+              </span>
             )}
           </div>
         </div>

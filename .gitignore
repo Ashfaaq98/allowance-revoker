@@ -19,5 +19,7 @@ build/
 .DS_Store
 *.log
 
-# Local scan/screenshot harnesses hit live mainnet; not part of the build
+# Local dev harnesses: these hit live mainnet and write to machine-specific paths
 web/scripts/test-scan.mts
+web/scripts/screenshot.mjs
+web/scripts/shots.mjs

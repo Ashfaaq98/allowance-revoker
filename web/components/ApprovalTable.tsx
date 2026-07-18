@@ -1,12 +1,16 @@
 "use client";
 
-import {useState} from "react";
-import {addressUrl, txUrl} from "@/lib/chain";
-import {shortAddress, spenderLabel} from "@/lib/contracts";
-import {formatAllowance, type RiskAssessment} from "@/lib/riskScore";
-import type {Approval} from "@/lib/scanApprovals";
-import {approvalKey, type RevokeState} from "@/lib/useRevoke";
-import {Button, RiskBadge, Spinner} from "./primitives";
+import { useState } from "react";
+import { addressUrl, txUrl } from "@/lib/chain";
+import { shortAddress, spenderLabel } from "@/lib/contracts";
+import {
+  formatAllowance,
+  type RiskAssessment,
+  type RiskLevel,
+} from "@/lib/riskScore";
+import type { Approval } from "@/lib/scanApprovals";
+import { approvalKey, type RevokeState } from "@/lib/useRevoke";
+import { Button, RiskBadge, Spinner } from "./primitives";
 
 export interface ScoredApproval {
   approval: Approval;
@@ -18,6 +22,13 @@ const STEP_LABEL: Record<string, string> = {
   arming: "Arming proof…",
   revoking: "Revoking…",
   confirming: "Logging on-chain…",
+};
+
+/** A coloured left edge so severity is legible while scrolling, without reading the badge. */
+const EDGE: Record<RiskLevel, string> = {
+  high: "before:bg-risk-high",
+  medium: "before:bg-risk-med",
+  low: "before:bg-transparent",
 };
 
 function RevokeCell({
@@ -39,8 +50,18 @@ function RevokeCell({
     return (
       <div className="flex flex-col items-end gap-0.5">
         <span className="inline-flex items-center gap-1.5 font-mono text-xs text-ok">
-          <svg viewBox="0 0 16 16" className="size-3.5" fill="none" aria-hidden="true">
-            <path d="M3 8.5l3.5 3.5L13 5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+          <svg
+            viewBox="0 0 16 16"
+            className="size-3.5"
+            fill="none"
+            aria-hidden="true"
+          >
+            <path
+              d="M3 8.5l3.5 3.5L13 5"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+            />
           </svg>
           Revoked
         </span>
@@ -73,10 +94,10 @@ function RevokeCell({
   if (step === "error") {
     return (
       <div className="flex flex-col items-end gap-1">
-        <span className="max-w-[16rem] text-right font-mono text-[11px] text-risk-high">
+        <span className="max-w-[15rem] text-right font-mono text-[11px] leading-tight text-risk-high">
           {state?.error}
         </span>
-        <Button variant="ghost" onClick={onRevoke}>
+        <Button variant="ghost" size="sm" onClick={onRevoke}>
           Retry
         </Button>
       </div>
@@ -136,21 +157,23 @@ function Row({
   canRevoke: boolean;
 }) {
   const [open, setOpen] = useState(false);
-  const {approval, risk, ageDays} = item;
+  const { approval, risk, ageDays } = item;
   const label = spenderLabel(approval.spender);
-  const unlimited = formatAllowance(approval) === "Unlimited" || approval.kind === "ERC721";
+  const unlimited =
+    approval.kind === "ERC721" || formatAllowance(approval) === "Unlimited";
+  const done = state?.step === "done";
 
   return (
     <>
       <tr
-        className={`border-b border-line/60 transition-colors hover:bg-raised/60 ${
-          state?.step === "done" ? "opacity-45" : ""
-        }`}
+        className={`group border-b border-line/70 transition-colors hover:bg-raised/70 ${done ? "opacity-40" : ""}`}
       >
-        <td className="py-2.5 pl-4 pr-2">
+        <td
+          className={`relative py-3 pl-4 pr-2 before:absolute before:inset-y-0 before:left-0 before:w-[3px] before:content-[''] ${EDGE[risk.level]}`}
+        >
           <button
             onClick={() => setOpen((v) => !v)}
-            className="flex items-center gap-2 text-left"
+            className="flex w-full items-center gap-2 text-left"
             aria-expanded={open}
           >
             <svg
@@ -159,23 +182,32 @@ function Row({
               fill="none"
               aria-hidden="true"
             >
-              <path d="M6 3l5 5-5 5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+              <path
+                d="M6 3l5 5-5 5"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+              />
             </svg>
             <span className="flex min-w-0 flex-col">
               <span className="flex items-center gap-1.5">
-                <span className="truncate font-mono text-sm text-ink">{approval.symbol}</span>
+                <span className="truncate font-mono text-[13px] font-medium text-ink">
+                  {approval.symbol}
+                </span>
                 {approval.kind === "ERC721" && (
                   <span className="rounded border border-line-bright px-1 font-mono text-[9px] uppercase text-ink-faint">
                     NFT
                   </span>
                 )}
               </span>
-              <span className="truncate font-mono text-[10px] text-ink-faint">{approval.name}</span>
+              <span className="truncate text-[11px] text-ink-faint">
+                {approval.name}
+              </span>
             </span>
           </button>
         </td>
 
-        <td className="px-2 py-2.5">
+        <td className="px-2 py-3">
           <a
             href={addressUrl(approval.spender)}
             target="_blank"
@@ -187,25 +219,31 @@ function Row({
           </a>
         </td>
 
-        <td className="px-2 py-2.5">
+        <td className="px-2 py-3">
           <span
-            className={`font-mono text-xs tabular-nums ${unlimited ? "text-risk-high" : "text-ink-dim"}`}
+            className={`font-mono text-xs tabular-nums ${
+              unlimited ? "font-medium text-risk-high" : "text-ink-dim"
+            }`}
           >
             {formatAllowance(approval)}
           </span>
         </td>
 
-        <td className="px-2 py-2.5">
+        <td className="px-2 py-3">
           <span className="font-mono text-xs tabular-nums text-ink-faint">
-            {ageDays === null ? "—" : ageDays < 1 ? "today" : `${Math.round(ageDays)}d`}
+            {ageDays === null
+              ? "—"
+              : ageDays < 1
+                ? "today"
+                : `${Math.round(ageDays)}d`}
           </span>
         </td>
 
-        <td className="px-2 py-2.5">
+        <td className="px-2 py-3">
           <RiskBadge level={risk.level} score={risk.score} />
         </td>
 
-        <td className="py-2.5 pl-2 pr-4 text-right">
+        <td className="py-3 pl-2 pr-4 text-right">
           <RevokeCell
             item={item}
             state={state}
@@ -217,10 +255,34 @@ function Row({
       </tr>
 
       {open && (
-        <tr className="border-b border-line/60 bg-void/40">
-          <td colSpan={6} className="px-4 py-3">
-            <div className="flex flex-col gap-2">
-              <div className="flex flex-wrap gap-x-6 gap-y-1 font-mono text-[10px] text-ink-faint">
+        <tr className="row-in border-b border-line/70 bg-raised/40">
+          <td colSpan={6} className="px-4 py-3 pl-9">
+            <div className="flex flex-col gap-2.5">
+              <ul className="flex flex-col gap-1.5">
+                {risk.reasons.length === 0 && (
+                  <li className="text-[11px] text-ink-faint">
+                    No risk signals matched — a bounded approval to a recognised
+                    spender.
+                  </li>
+                )}
+                {risk.reasons.map((reason) => (
+                  <li
+                    key={reason.label}
+                    className="flex gap-2.5 text-[11px] leading-relaxed"
+                  >
+                    <span className="mt-px shrink-0 rounded bg-raised px-1 font-mono text-[10px] text-risk-med">
+                      +{reason.points}
+                    </span>
+                    <span className="text-ink-dim">
+                      <span className="font-medium text-ink">
+                        {reason.label}.
+                      </span>{" "}
+                      {reason.detail}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+              <div className="flex flex-wrap gap-x-5 gap-y-1 border-t border-line pt-2 font-mono text-[10px] text-ink-faint">
                 <span>
                   token{" "}
                   <a
@@ -243,23 +305,10 @@ function Row({
                     {approval.spender}
                   </a>
                 </span>
-                <span>last changed at block {approval.lastUpdatedBlock.toLocaleString()}</span>
+                <span>
+                  changed at block {approval.lastUpdatedBlock.toLocaleString()}
+                </span>
               </div>
-              <ul className="flex flex-col gap-1">
-                {risk.reasons.length === 0 && (
-                  <li className="font-mono text-[11px] text-ink-faint">
-                    No risk signals matched. This is a bounded approval to a recognised spender.
-                  </li>
-                )}
-                {risk.reasons.map((reason) => (
-                  <li key={reason.label} className="flex gap-2 text-[11px] leading-relaxed">
-                    <span className="shrink-0 font-mono text-risk-med">+{reason.points}</span>
-                    <span className="text-ink-dim">
-                      <span className="text-ink">{reason.label}.</span> {reason.detail}
-                    </span>
-                  </li>
-                ))}
-              </ul>
             </div>
           </td>
         </tr>
@@ -281,16 +330,29 @@ export function ApprovalTable({
   registryEnabled: boolean;
   canRevoke: boolean;
 }) {
+  const headers = ["Token", "Spender", "Allowance", "Age", "Risk", ""];
   return (
     <div className="min-h-0 flex-1 overflow-auto">
-      <table className="w-full border-collapse">
+      <table className="w-full table-fixed border-collapse">
+        <colgroup>
+          <col className="w-[26%]" />
+          <col className="w-[18%]" />
+          <col className="w-[15%]" />
+          <col className="w-[8%]" />
+          <col className="w-[15%]" />
+          <col className="w-[18%]" />
+        </colgroup>
         <thead className="sticky top-0 z-10 bg-surface">
           <tr className="border-b border-line">
-            {["Token", "Spender", "Allowance", "Age", "Risk", ""].map((h, i) => (
+            {headers.map((h, i) => (
               <th
                 key={h || i}
-                className={`py-2 font-mono text-[10px] font-normal uppercase tracking-[0.16em] text-ink-faint ${
-                  i === 0 ? "pl-4 pr-2 text-left" : i === 5 ? "pl-2 pr-4 text-right" : "px-2 text-left"
+                className={`bg-surface py-2.5 font-mono text-[10px] font-normal uppercase tracking-[0.16em] text-ink-faint ${
+                  i === 0
+                    ? "pl-4 pr-2 text-left"
+                    : i === 5
+                      ? "pl-2 pr-4 text-right"
+                      : "px-2 text-left"
                 }`}
               >
                 {h}

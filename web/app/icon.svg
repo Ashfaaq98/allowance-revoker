@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32">
+  <!-- Shield + check: "this wallet has been audited". Deliberately heavy strokes and a filled
+       ground so it stays legible at 16px in a browser tab, where thin outlines disappear. -->
+  <rect width="32" height="32" rx="7" fill="#0b0912"/>
+  <path d="M16 4.5 26 9.2v6.9c0 5.6-4.1 10.4-10 12.4-5.9-2-10-6.8-10-12.4V9.2L16 4.5Z"
+        fill="#836ef9"/>
+  <path d="M11 16.2l3.4 3.4L21.4 12.6"
+        fill="none" stroke="#0b0912" stroke-width="3.2"
+        stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

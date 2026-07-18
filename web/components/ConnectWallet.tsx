@@ -1,25 +1,34 @@
 "use client";
 
-import {useAccount, useChainId, useConnect, useDisconnect, useSwitchChain} from "wagmi";
-import {MONAD_CHAIN_ID} from "@/lib/chain";
-import {shortAddress} from "@/lib/contracts";
-import {Button} from "./primitives";
+import {
+  useAccount,
+  useChainId,
+  useConnect,
+  useDisconnect,
+  useSwitchChain,
+} from "wagmi";
+import { MONAD_CHAIN_ID } from "@/lib/chain";
+import { shortAddress } from "@/lib/contracts";
+import { Button } from "./primitives";
 
 export function ConnectWallet() {
-  const {address, isConnected} = useAccount();
-  const {connect, connectors, isPending} = useConnect();
-  const {disconnect} = useDisconnect();
+  const { address, isConnected } = useAccount();
+  const { connect, connectors, isPending } = useConnect();
+  const { disconnect } = useDisconnect();
   const chainId = useChainId();
-  const {switchChain, isPending: isSwitching} = useSwitchChain();
+  const { switchChain, isPending: isSwitching } = useSwitchChain();
 
-  const injectedConnector = connectors.find((c) => c.id === "injected") ?? connectors[0];
+  const injectedConnector =
+    connectors.find((c) => c.id === "injected") ?? connectors[0];
   const wrongNetwork = isConnected && chainId !== MONAD_CHAIN_ID;
 
   if (!isConnected) {
     return (
       <Button
         variant="primary"
-        onClick={() => injectedConnector && connect({connector: injectedConnector})}
+        onClick={() =>
+          injectedConnector && connect({ connector: injectedConnector })
+        }
         disabled={isPending || !injectedConnector}
       >
         {isPending ? "Connecting…" : "Connect wallet"}
@@ -29,7 +38,11 @@ export function ConnectWallet() {
 
   if (wrongNetwork) {
     return (
-      <Button variant="danger" onClick={() => switchChain({chainId: MONAD_CHAIN_ID})} disabled={isSwitching}>
+      <Button
+        variant="danger"
+        onClick={() => switchChain({ chainId: MONAD_CHAIN_ID })}
+        disabled={isSwitching}
+      >
         {isSwitching ? "Switching…" : "Switch to Monad"}
       </Button>
     );
