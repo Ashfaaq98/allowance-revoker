@@ -1,19 +1,14 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useCallback, useMemo, useState } from "react";
 import { type Address, isAddress } from "viem";
 import { useAccount, useChainId, useReadContract } from "wagmi";
+import { AddressInput } from "@/components/AddressInput";
 import { ApprovalTable, type ScoredApproval } from "@/components/ApprovalTable";
 import { ConnectWallet } from "@/components/ConnectWallet";
-import {
-  Button,
-  ExposureBar,
-  Panel,
-  Spinner,
-  Stat,
-} from "@/components/primitives";
+import { Button, ExposureBar, Panel, Spinner, Stat } from "@/components/primitives";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { MONAD_CHAIN_ID } from "@/lib/chain";
 import {
@@ -48,17 +43,20 @@ function Dashboard() {
   const chainId = useChainId();
   const { states, revoke } = useRevoke();
 
-  /** ?address=0x… deep link, so an approval report can be shared or bookmarked. */
+  /**
+   * The inspected address lives entirely in the URL (?address=0x…). Keeping a second copy in
+   * component state was the bug behind a dead "Exit" button: clearing the state simply fell
+   * back to the still-present query param. A single source of truth also makes every view
+   * shareable and bookmarkable for free.
+   */
+  const router = useRouter();
   const searchParams = useSearchParams();
   const linkedAddress = searchParams.get("address");
-
-  /** Set when inspecting someone else's wallet read-only. Null means "use my own". */
-  const [manualAddress, setManualAddress] = useState<Address | null>(null);
   const watchAddress =
-    manualAddress ??
-    (linkedAddress && isAddress(linkedAddress)
-      ? (linkedAddress as Address)
-      : null);
+    linkedAddress && isAddress(linkedAddress) ? (linkedAddress as Address) : null;
+
+  const inspectAddress = useCallback((next: Address) => router.push(`/?address=${next}`), [router]);
+  const clearInspection = useCallback(() => router.push("/"), [router]);
 
   const [progress, setProgress] = useState<ScanProgress | null>(null);
   const [filter, setFilter] = useState<Filter>("all");
@@ -102,11 +100,7 @@ function Dashboard() {
   });
 
   const runScan = useCallback(() => void refetch(), [refetch]);
-  const scanError = error
-    ? error instanceof Error
-      ? error.message
-      : String(error)
-    : null;
+  const scanError = error ? (error instanceof Error ? error.message : String(error)) : null;
 
   const scored = useMemo<ScoredApproval[]>(() => {
     if (!result) return [];
@@ -137,8 +131,7 @@ function Dashboard() {
   }, [scored]);
 
   const visible = useMemo(
-    () =>
-      filter === "all" ? scored : scored.filter((s) => s.risk.level === filter),
+    () => (filter === "all" ? scored : scored.filter((s) => s.risk.level === filter)),
     [scored, filter],
   );
 
@@ -178,9 +171,7 @@ function Dashboard() {
             </svg>
           </div>
           <div className="flex flex-col">
-            <h1 className="text-sm font-medium leading-tight tracking-tight">
-              Allowance Revoker
-            </h1>
+            <h1 className="text-sm font-medium leading-tight tracking-tight">Allowance Revoker</h1>
             <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-ink-faint">
               Monad Mainnet · Chain 143
             </span>
@@ -188,12 +179,14 @@ function Dashboard() {
         </div>
         <div className="flex items-center gap-2">
           <ThemeToggle />
-          <ConnectWallet />
+          {/* The landing hero carries its own prominent Connect CTA, so the header suppresses
+              its copy there rather than showing the same button twice. */}
+          {target && <ConnectWallet />}
         </div>
       </header>
 
       {!target ? (
-        <Landing onInspect={setManualAddress} />
+        <Landing onInspect={inspectAddress} />
       ) : isConnected && chainId !== MONAD_CHAIN_ID && !watchAddress ? (
         <CenteredNotice
           title="Wrong network"
@@ -202,21 +195,26 @@ function Dashboard() {
       ) : (
         <main className="flex min-h-0 flex-1 flex-col gap-3 p-4">
           {!canRevoke && (
-            <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 rounded border border-monad/25 bg-monad/5 px-3 py-2">
+            <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 rounded-lg border border-monad/25 bg-monad/5 px-3 py-2">
               <span className="font-mono text-[11px] text-monad-bright">
-                Read-only — viewing {shortAddress(target)}. Live chain data, but
-                only this wallet&apos;s owner can revoke its approvals.
+                Read-only — viewing {shortAddress(target)}.{" "}
+                {isConnected
+                  ? "Only this wallet's owner can revoke its approvals."
+                  : "Connect this wallet to revoke."}
               </span>
-              <div className="flex gap-2">
+              {/* Address switcher lives here so you are not stranded on whichever wallet you
+                  first opened. The header already carries the only Connect button. */}
+              <div className="flex items-center gap-2">
+                <AddressInput
+                  onSubmit={inspectAddress}
+                  size="sm"
+                  placeholder="Inspect another address…"
+                />
                 {watchAddress && (
-                  <Button
-                    variant="ghost"
-                    onClick={() => setManualAddress(null)}
-                  >
+                  <Button variant="ghost" size="sm" onClick={clearInspection}>
                     Exit
                   </Button>
                 )}
-                {!isConnected && <ConnectWallet />}
               </div>
             </div>
           )}
@@ -244,9 +242,7 @@ function Dashboard() {
                 {registryEnabled && (
                   <Stat
                     label="Cleanup score"
-                    value={
-                      cleanupScore === undefined ? "—" : String(cleanupScore)
-                    }
+                    value={cleanupScore === undefined ? "—" : String(cleanupScore)}
                     tone="monad"
                     hint="Approvals provably revoked, recorded on-chain"
                   />
@@ -297,11 +293,7 @@ function Dashboard() {
               />
             ) : visible.length === 0 ? (
               <CenteredNotice
-                title={
-                  scored.length === 0
-                    ? "Nothing exposed"
-                    : `No ${filter}-risk approvals`
-                }
+                title={scored.length === 0 ? "Nothing exposed" : `No ${filter}-risk approvals`}
                 body={
                   scored.length === 0
                     ? `This wallet has no active token approvals. ${result.filteredOut} historical approval event${
@@ -323,9 +315,8 @@ function Dashboard() {
 
           {!registryEnabled && (
             <p className="shrink-0 rounded border border-risk-med/25 bg-risk-med-deep/50 px-3 py-2 font-mono text-[11px] text-risk-med">
-              Registry contract not configured. Revoking works normally;
-              on-chain cleanup proofs are disabled until
-              NEXT_PUBLIC_REGISTRY_ADDRESS is set.
+              Registry contract not configured. Revoking works normally; on-chain cleanup proofs are
+              disabled until NEXT_PUBLIC_REGISTRY_ADDRESS is set.
             </p>
           )}
         </main>
@@ -406,10 +397,6 @@ const STEPS = [
 ];
 
 function Landing({ onInspect }: { onInspect: (address: Address) => void }) {
-  const [input, setInput] = useState("");
-  const trimmed = input.trim();
-  const valid = isAddress(trimmed);
-
   return (
     <main className="flex flex-1 items-center justify-center overflow-auto p-6">
       <div className="grid w-full max-w-4xl gap-10 md:grid-cols-[1.15fr_1fr] md:items-center">
@@ -421,10 +408,10 @@ function Landing({ onInspect }: { onInspect: (address: Address) => void }) {
             Every dApp you have used still has permission to move your tokens.
           </h2>
           <p className="text-sm leading-relaxed text-ink-dim">
-            Approvals do not expire. Months later you have forgotten which
-            contracts you granted access to, and most of them asked for an
-            unlimited amount. If any one of them is exploited, the attacker does
-            not need your keys — they use the approval you already signed.
+            Approvals do not expire. Months later you have forgotten which contracts you granted
+            access to, and most of them asked for an unlimited amount. If any one of them is
+            exploited, the attacker does not need your keys — they use the approval you already
+            signed.
           </p>
           <div className="flex flex-col items-start gap-2">
             <ConnectWallet />
@@ -443,49 +430,21 @@ function Landing({ onInspect }: { onInspect: (address: Address) => void }) {
               >
                 <span className="font-mono text-[10px] text-monad">{s.n}</span>
                 <span className="flex flex-col gap-0.5">
-                  <span className="font-mono text-xs uppercase tracking-wider text-ink">
-                    {s.t}
-                  </span>
-                  <span className="text-[11px] leading-relaxed text-ink-dim">
-                    {s.d}
-                  </span>
+                  <span className="font-mono text-xs uppercase tracking-wider text-ink">{s.t}</span>
+                  <span className="text-[11px] leading-relaxed text-ink-dim">{s.d}</span>
                 </span>
               </li>
             ))}
           </ol>
 
           <div className="flex flex-col gap-2 border-t border-line pt-4">
-            <label
-              htmlFor="inspect"
-              className="font-mono text-[10px] uppercase tracking-[0.16em] text-ink-faint"
-            >
+            <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-ink-faint">
               Or inspect any address, read-only
-            </label>
-            <div className="flex gap-2">
-              <input
-                id="inspect"
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && valid) onInspect(trimmed as Address);
-                }}
-                placeholder="0x…"
-                spellCheck={false}
-                className="min-w-0 flex-1 rounded border border-line bg-void px-2.5 py-1.5 font-mono text-xs text-ink outline-none placeholder:text-ink-faint focus:border-monad/60"
-              />
-              <Button
-                variant="default"
-                disabled={!valid}
-                onClick={() => valid && onInspect(trimmed as Address)}
-              >
-                Scan
-              </Button>
-            </div>
-            {trimmed.length > 0 && !valid && (
-              <span className="font-mono text-[10px] text-risk-high">
-                Not a valid address
-              </span>
-            )}
+            </span>
+            <AddressInput onSubmit={onInspect} />
+            <span className="font-mono text-[10px] text-ink-faint">
+              No wallet needed — blockchain data is public.
+            </span>
           </div>
         </div>
       </div>
