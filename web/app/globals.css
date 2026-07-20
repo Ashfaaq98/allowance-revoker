@@ -97,8 +97,9 @@
 
   --color-ok: var(--ok);
 
-  --font-display: var(--font-space-grotesk);
-  --font-mono: var(--font-jetbrains-mono);
+  /* System font stacks keep production builds independent of the Google Fonts network. */
+  --font-display: ui-rounded, "Avenir Next", Avenir, "Segoe UI", sans-serif;
+  --font-mono: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
 
   --shadow-panel: var(--shadow);
 }

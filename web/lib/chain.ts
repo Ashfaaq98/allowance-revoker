@@ -21,7 +21,7 @@ export const MONAD_CHAIN_ID = 143;
 /**
  * Optional override pointing every RPC call at a single endpoint. Set NEXT_PUBLIC_RPC_URL to
  * run the whole dashboard against a local node or a fork — which is how the revoke flow is
- * exercised end-to-end without spending real funds (see contracts/README or the repo README).
+ * exercised end-to-end without spending real funds (see the repository README).
  */
 const RPC_OVERRIDE = process.env.NEXT_PUBLIC_RPC_URL;
 

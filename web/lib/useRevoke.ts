@@ -1,11 +1,15 @@
 "use client";
 
 import {useCallback, useState} from "react";
-import {type Address, erc20Abi} from "viem";
+import {type Address, erc20Abi, parseAbi} from "viem";
 import {useAccount, useWalletClient} from "wagmi";
 import {publicClient} from "./chain";
 import {isRegistryConfigured, KIND, REGISTRY_ADDRESS, revokeAbi, revokeRegistryAbi} from "./contracts";
 import type {Approval} from "./scanApprovals";
+
+const nftApprovalAbi = parseAbi([
+  "function isApprovedForAll(address owner, address operator) view returns (bool)",
+]);
 
 /**
  * A revoke is three on-chain steps, and the UI shows all three rather than collapsing them
@@ -107,7 +111,7 @@ export function useRevoke() {
 
         // Independently verify against chain state rather than trusting a mined receipt.
         // A token could implement approve() as a no-op; this is what catches that.
-        const remaining =
+        const stillApproved =
           approval.kind === "ERC20"
             ? await publicClient.readContract({
                 address: approval.token,
@@ -115,10 +119,19 @@ export function useRevoke() {
                 functionName: "allowance",
                 args: [address, approval.spender],
               })
-            : 0n;
+            : await publicClient.readContract({
+                address: approval.token,
+                abi: nftApprovalAbi,
+                functionName: "isApprovedForAll",
+                args: [address, approval.spender],
+              });
 
-        if (approval.kind === "ERC20" && remaining !== 0n) {
-          throw new Error("Token still reports a nonzero allowance after revoking");
+        if (stillApproved !== (approval.kind === "ERC20" ? 0n : false)) {
+          throw new Error(
+            approval.kind === "ERC20"
+              ? "Token still reports a nonzero allowance after revoking"
+              : "Collection still reports this operator as approved after revoking",
+          );
         }
         update(key, {verifiedOnChain: true});
 

@@ -143,10 +143,14 @@ function Dashboard() {
 
   const handleRevoke = useCallback(
     async (approval: Approval) => {
+      const proofNote = registryEnabled
+        ? " This will request three transactions: arm proof, revoke, then confirm proof."
+        : " This will request one revoke transaction.";
+      if (!window.confirm(`Revoke this ${approval.kind} approval?${proofNote}`)) return;
       await revoke(approval);
       void refetchScore();
     },
-    [revoke, refetchScore],
+    [registryEnabled, revoke, refetchScore],
   );
 
   const scanning = isFetching;
@@ -342,9 +346,9 @@ function CoverageNote({ result }: { result: ScanResult }) {
   return (
     <span
       className="font-mono text-[10px] text-risk-med"
-      title="This wallet has more approval history than can be read in one pass. Everything after this block was checked."
+      title="This wallet has more approval history than can be read in one pass. Rescan to retry the most recent coverage; do not treat this as a complete history."
     >
-      partial · scanned back to block {result.scannedFromBlock.toLocaleString()}
+      partial history · through block {result.scannedFromBlock.toLocaleString()} · rescan to retry
     </span>
   );
 }
@@ -388,7 +392,7 @@ const STEPS = [
   {
     n: "01",
     t: "Scan",
-    d: "Read every Approval event your wallet has emitted, back to genesis.",
+    d: "Read ERC-20 Approval and ERC-721 collection-approval events back to genesis.",
   },
   {
     n: "02",

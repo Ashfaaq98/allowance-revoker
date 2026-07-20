@@ -1,12 +1,12 @@
 # Allowance Revoker
 
-**Find every token approval your wallet has ever granted on Monad, see which ones are actually dangerous, and revoke them — with each cleanup provable on-chain.**
+**Find active ERC-20 allowances and ERC-721 collection approvals on Monad, see which ones need attention, and revoke them — with each cleanup provable on-chain.**
 
 Built for the [Spark hackathon](https://buildanything.so/hackathons/spark). Monad Mainnet, chain 143.
 
-- **Live app:** _(add your Vercel URL)_
-- **RevokeRegistry contract:** _(add address after deploy)_
-- **Demo video:** _(add link)_
+- **Live app:** deploy to Netlify, then add the production URL here
+- **RevokeRegistry contract:** deploy and verify on Monad, then add the address here
+- **Demo video:** add the final walkthrough link here
 
 ---
 
@@ -20,7 +20,7 @@ I went looking for what my own wallet was still exposed to and found approvals I
 
 ## What it does
 
-1. **Scan** — reads every `Approval` and `ApprovalForAll` event your wallet has ever emitted, back to genesis.
+1. **Scan** — reads ERC-20 `Approval` and ERC-721 `ApprovalForAll` events your wallet has emitted, back to genesis.
 2. **Verify** — re-reads each candidate against live chain state. Approvals that were spent, reduced, or revoked drop out, as does the very large amount of outright spam (see below).
 3. **Score** — grades what remains by how much it actually exposes, with every point traceable to a stated reason.
 4. **Revoke** — sets the allowance to zero, then proves the cleanup on-chain.
@@ -105,6 +105,17 @@ npm run dev                    # http://localhost:3000
 ```
 
 It works with no configuration at all. Without a registry address, scanning and revoking behave normally and the UI states plainly that on-chain proofs are disabled.
+
+### Netlify deployment
+
+This repository contains both contracts and the web app. Netlify should build the `web` app:
+
+1. Push this repository to GitHub and create a new Netlify project from it.
+2. Keep the committed `netlify.toml`; it sets the base directory to `web`, uses Node 20, runs `npm run build`, and publishes `.next`.
+3. In **Site configuration → Environment variables**, set `NEXT_PUBLIC_REGISTRY_ADDRESS` after the Monad deployment. Set `NEXT_PUBLIC_RPC_URL` only if you deliberately want to override the public RPC.
+4. Deploy, then paste the resulting Netlify URL, verified registry address, and demo link into the project links above.
+
+`NEXT_PUBLIC_*` values are visible in the browser. Never place private keys, API secrets, or deployment credentials in Netlify environment variables with that prefix.
 
 **You do not need a wallet to try it.** Paste any address into the read-only inspector on the landing page, or deep-link it:
 
@@ -195,6 +206,7 @@ Stated plainly, because a security tool that oversells itself is worse than none
 - **Approval age is approximate**, derived from an observed block rate rather than per-block timestamps.
 - **Batch revocation is not implemented.** `approve` is `msg.sender`-scoped so Multicall3 cannot help, and Permit2's `lockdown()` only clears Permit2's *own* internal allowances — it cannot touch an approval granted directly to another spender. The real answer is EIP-5792 `wallet_sendCalls` (Monad supports EIP-7702 natively), gated on a runtime `wallet_getCapabilities` check.
 - **Tokens whose `allowance()` reverts are dropped**, not surfaced. They are overwhelmingly spam, but a genuinely broken token would be hidden too.
+- **Individual NFT approvals are not scanned.** The app supports ERC-721 `setApprovalForAll` collection approvals, not single-token `approve(to, tokenId)` approvals. ERC-1155 and Permit2 internal allowances are also out of scope for this MVP.
 
 ## License
 
